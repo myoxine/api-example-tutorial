@@ -1,11 +1,21 @@
 import express from "express";
 import { Express } from "express-serve-static-core";
-import { hello } from "./../api/controllers";
-const path = require("path");
+import * as api from "./../api/controllers";
+import { connector, summarise } from "swagger-routes-express";
+import YAML from "yamljs";
+import path from "path";
 import * as OpenApiValidator from "express-openapi-validator";
+import swaggerUi from "swagger-ui-express";
+
 export async function createServer(): Promise<Express> {
   const server = express();
   const apiSpec = path.join(__dirname, "/../../config/openapi.yml");
+  const apiDefinition = YAML.load(apiSpec);
+  //console.log(apiDefinition);
+  const apiSummary = summarise(apiDefinition);
+  console.log(apiSummary);
+  server.use("/doc/v1", swaggerUi.serve, swaggerUi.setup(apiDefinition));
+
   const validatorOptions = {
     coerceTypes: false,
     apiSpec: apiSpec,
@@ -13,11 +23,6 @@ export async function createServer(): Promise<Express> {
     validateResponses: false,
   };
   server.use(OpenApiValidator.middleware(validatorOptions));
-
-  server.get("/api/v1/hello", hello);
-  server.get("/", (req, res) => {
-    res.send("Hello world!!! I'm So Excited!!");
-  });
   server.use(
     (
       err: any,
@@ -34,5 +39,24 @@ export async function createServer(): Promise<Express> {
       });
     }
   );
+
+  const connect = connector(api, apiDefinition, {
+    onCreateRoute: (method: string, descriptor: any[]) => {
+      console.log(
+        `${method}: ${descriptor[0]} : ${(descriptor[1] as any).name}`
+      );
+    },
+  });
+
+  connect(server);
+
+  server.use((req: express.Request, res: express.Response) => {
+    res.status(404).send({
+      error: {
+        type: "page_not_found",
+        message: "Your api endpoint not found",
+      },
+    });
+  });
   return server;
 }
