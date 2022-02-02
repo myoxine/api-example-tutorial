@@ -1,7 +1,7 @@
 import * as express from "express";
 
-import UserService from "../service/user";
-import { writeJsonResponse } from "../../utils/express";
+import UserService from "@root/api/service/user";
+import { writeJsonResponse } from "@root/utils/express";
 
 export function auth(
   req: express.Request,
